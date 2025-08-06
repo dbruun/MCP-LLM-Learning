@@ -1,0 +1,469 @@
+@page
+@{
+    ViewData["Title"] = "Copilot Chat";
+    Layout = null;
+}
+
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>@ViewData["Title"]</title>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .chat-container {
+            width: 90%;
+            max-width: 800px;
+            height: 85vh;
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.1);
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+
+        .chat-header {
+            background: linear-gradient(135deg, #4f46e5, #7c3aed);
+            color: white;
+            padding: 20px;
+            text-align: center;
+            position: relative;
+        }
+
+        .chat-header h1 {
+            font-size: 1.5rem;
+            font-weight: 600;
+            margin: 0;
+        }
+
+        .chat-header .subtitle {
+            font-size: 0.9rem;
+            opacity: 0.8;
+            margin-top: 5px;
+        }
+
+        .chat-messages {
+            flex: 1;
+            padding: 20px;
+            overflow-y: auto;
+            background: #f8fafc;
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+        }
+
+        .message {
+            display: flex;
+            max-width: 80%;
+            animation: slideIn 0.3s ease-out;
+        }
+
+        .message.user {
+            align-self: flex-end;
+            flex-direction: row-reverse;
+        }
+
+        .message.bot {
+            align-self: flex-start;
+        }
+
+        .message.error {
+            align-self: flex-start;
+        }
+
+        .message-avatar {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.2rem;
+            margin: 0 12px;
+            flex-shrink: 0;
+        }
+
+        .user .message-avatar {
+            background: linear-gradient(135deg, #4f46e5, #7c3aed);
+            color: white;
+        }
+
+        .bot .message-avatar {
+            background: linear-gradient(135deg, #10b981, #06b6d4);
+            color: white;
+        }
+
+        .error .message-avatar {
+            background: linear-gradient(135deg, #ef4444, #f97316);
+            color: white;
+        }
+
+        .message-content {
+            background: white;
+            padding: 12px 16px;
+            border-radius: 18px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+            position: relative;
+            word-wrap: break-word;
+        }
+
+        .user .message-content {
+            background: linear-gradient(135deg, #4f46e5, #7c3aed);
+            color: white;
+        }
+
+        .user .message-content::before {
+            content: '';
+            position: absolute;
+            top: 15px;
+            right: -8px;
+            width: 0;
+            height: 0;
+            border: 8px solid transparent;
+            border-left-color: #4f46e5;
+        }
+
+        .bot .message-content::before,
+        .error .message-content::before {
+            content: '';
+            position: absolute;
+            top: 15px;
+            left: -8px;
+            width: 0;
+            height: 0;
+            border: 8px solid transparent;
+            border-right-color: white;
+        }
+
+        .chat-input {
+            padding: 20px;
+            background: white;
+            border-top: 1px solid #e5e7eb;
+        }
+
+        .input-container {
+            display: flex;
+            gap: 10px;
+            align-items: flex-end;
+        }
+
+        .message-input {
+            flex: 1;
+            border: 2px solid #e5e7eb;
+            border-radius: 20px;
+            padding: 12px 16px;
+            font-size: 1rem;
+            outline: none;
+            transition: border-color 0.2s;
+            resize: none;
+            min-height: 44px;
+            max-height: 120px;
+            line-height: 1.4;
+        }
+
+        .message-input:focus {
+            border-color: #4f46e5;
+        }
+
+        .send-button {
+            background: linear-gradient(135deg, #4f46e5, #7c3aed);
+            color: white;
+            border: none;
+            border-radius: 50%;
+            width: 44px;
+            height: 44px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            transition: transform 0.2s, box-shadow 0.2s;
+            font-size: 1.1rem;
+        }
+
+        .send-button:hover {
+            transform: scale(1.05);
+            box-shadow: 0 4px 12px rgba(79, 70, 229, 0.4);
+        }
+
+        .send-button:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .typing-indicator {
+            display: none;
+            padding: 8px 16px;
+            font-style: italic;
+            color: #6b7280;
+            font-size: 0.9rem;
+        }
+
+        .typing-indicator.show {
+            display: block;
+            animation: pulse 1.5s infinite;
+        }
+
+        @@keyframes slideIn {
+            from {
+                opacity: 0;
+                transform: translateY(20px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        @@keyframes pulse {
+            0%, 100% { opacity: 0.5; }
+            50% { opacity: 1; }
+        }
+
+        .connection-status {
+            position: absolute;
+            top: 15px;
+            right: 20px;
+            padding: 4px 8px;
+            border-radius: 10px;
+            font-size: 0.8rem;
+            font-weight: 500;
+        }
+
+        .connection-status.connected {
+            background: rgba(16, 185, 129, 0.2);
+            color: #059669;
+        }
+
+        .connection-status.disconnected {
+            background: rgba(239, 68, 68, 0.2);
+            color: #dc2626;
+        }
+
+        /* Scrollbar styling */
+        .chat-messages::-webkit-scrollbar {
+            width: 6px;
+        }
+
+        .chat-messages::-webkit-scrollbar-track {
+            background: #f1f5f9;
+            border-radius: 3px;
+        }
+
+        .chat-messages::-webkit-scrollbar-thumb {
+            background: #cbd5e1;
+            border-radius: 3px;
+        }
+
+        .chat-messages::-webkit-scrollbar-thumb:hover {
+            background: #94a3b8;
+        }
+
+        /* Responsive design */
+        @@media (max-width: 768px) {
+            .chat-container {
+                width: 95%;
+                height: 90vh;
+                border-radius: 15px;
+            }
+            
+            .message {
+                max-width: 90%;
+            }
+            
+            .chat-header h1 {
+                font-size: 1.3rem;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="chat-container">
+        <div class="chat-header">
+            <div class="connection-status disconnected" id="connectionStatus">
+                <i class="fas fa-circle"></i> Connecting...
+            </div>
+            <h1><i class="fas fa-robot"></i> Copilot Assistant</h1>
+            <div class="subtitle">Powered by AI with specialized tools</div>
+        </div>
+
+        <div class="chat-messages" id="messagesList">
+            <!-- Messages will be added here dynamically -->
+        </div>
+
+        <div class="typing-indicator" id="typingIndicator">
+            <i class="fas fa-robot"></i> Copilot is typing...
+        </div>
+
+        <div class="chat-input">
+            <div class="input-container">
+                <textarea class="message-input" 
+                         id="messageInput" 
+                         placeholder="Ask me anything..." 
+                         rows="1"></textarea>
+                <button class="send-button" id="sendButton" disabled>
+                    <i class="fas fa-paper-plane"></i>
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/microsoft-signalr/8.0.0/signalr.min.js"></script>
+    <script>
+        class ChatApp {
+            constructor() {
+                this.connection = null;
+                this.messagesList = document.getElementById('messagesList');
+                this.messageInput = document.getElementById('messageInput');
+                this.sendButton = document.getElementById('sendButton');
+                this.typingIndicator = document.getElementById('typingIndicator');
+                this.connectionStatus = document.getElementById('connectionStatus');
+                
+                this.init();
+            }
+
+            async init() {
+                await this.setupSignalR();
+                this.setupEventListeners();
+                this.adjustTextareaHeight();
+            }
+
+            async setupSignalR() {
+                this.connection = new signalR.HubConnectionBuilder()
+                    .withUrl("/chathub")
+                    .build();
+
+                this.connection.start().then(() => {
+                    console.log("SignalR connected");
+                    this.updateConnectionStatus(true);
+                    this.sendButton.disabled = false;
+                }).catch(err => {
+                    console.error("SignalR connection error:", err);
+                    this.updateConnectionStatus(false);
+                });
+
+                this.connection.on("ReceiveMessage", (user, message, type) => {
+                    this.addMessage(user, message, type);
+                });
+
+                this.connection.on("TypingIndicator", (isTyping) => {
+                    this.showTypingIndicator(isTyping);
+                });
+
+                this.connection.onclose(() => {
+                    console.log("SignalR disconnected");
+                    this.updateConnectionStatus(false);
+                    this.sendButton.disabled = true;
+                });
+            }
+
+            setupEventListeners() {
+                this.sendButton.addEventListener('click', () => this.sendMessage());
+                
+                this.messageInput.addEventListener('keypress', (e) => {
+                    if (e.key === 'Enter' && !e.shiftKey) {
+                        e.preventDefault();
+                        this.sendMessage();
+                    }
+                });
+
+                this.messageInput.addEventListener('input', () => {
+                    this.adjustTextareaHeight();
+                });
+            }
+
+            adjustTextareaHeight() {
+                this.messageInput.style.height = 'auto';
+                this.messageInput.style.height = Math.min(this.messageInput.scrollHeight, 120) + 'px';
+            }
+
+            async sendMessage() {
+                const message = this.messageInput.value.trim();
+                if (message && this.connection) {
+                    try {
+                        await this.connection.invoke("SendMessage", "User", message);
+                        this.messageInput.value = '';
+                        this.adjustTextareaHeight();
+                    } catch (err) {
+                        console.error("Error sending message:", err);
+                        this.addMessage("System", "Failed to send message. Please try again.", "error");
+                    }
+                }
+            }
+
+            addMessage(user, message, type = 'bot') {
+                const messageDiv = document.createElement('div');
+                messageDiv.className = `message ${type}`;
+
+                const avatar = document.createElement('div');
+                avatar.className = 'message-avatar';
+                
+                if (type === 'user') {
+                    avatar.innerHTML = '<i class="fas fa-user"></i>';
+                } else if (type === 'error') {
+                    avatar.innerHTML = '<i class="fas fa-exclamation-triangle"></i>';
+                } else {
+                    avatar.innerHTML = '<i class="fas fa-robot"></i>';
+                }
+
+                const content = document.createElement('div');
+                content.className = 'message-content';
+                content.textContent = message;
+
+                messageDiv.appendChild(avatar);
+                messageDiv.appendChild(content);
+
+                this.messagesList.appendChild(messageDiv);
+                this.scrollToBottom();
+            }
+
+            showTypingIndicator(show) {
+                if (show) {
+                    this.typingIndicator.classList.add('show');
+                } else {
+                    this.typingIndicator.classList.remove('show');
+                }
+                this.scrollToBottom();
+            }
+
+            updateConnectionStatus(connected) {
+                if (connected) {
+                    this.connectionStatus.className = 'connection-status connected';
+                    this.connectionStatus.innerHTML = '<i class="fas fa-circle"></i> Connected';
+                } else {
+                    this.connectionStatus.className = 'connection-status disconnected';
+                    this.connectionStatus.innerHTML = '<i class="fas fa-circle"></i> Disconnected';
+                }
+            }
+
+            scrollToBottom() {
+                setTimeout(() => {
+                    this.messagesList.scrollTop = this.messagesList.scrollHeight;
+                }, 50);
+            }
+        }
+
+        // Initialize the chat app when the DOM is loaded
+        document.addEventListener('DOMContentLoaded', () => {
+            new ChatApp();
+        });
+    </script>
+</body>
+</html>
