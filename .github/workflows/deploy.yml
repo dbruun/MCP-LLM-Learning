@@ -17,5 +17,5 @@ jobs:
         run: dotnet restore
       - name: Build
         run: dotnet build --configuration Release
-      - name: Run Deployment Script
-        run: dotnet run --project tools/TemplateDeployer
+      #- name: Run Deployment Script
+      #  run: dotnet run --project tools/TemplateDeployer
