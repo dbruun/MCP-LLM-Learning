@@ -1,4 +1,4 @@
-name: Deploy Templates
+name: Check Build and Deploy to Azure Web App
 on:
   workflow_dispatch:
   push:
@@ -9,13 +9,28 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3
+
       - name: Setup .NET
         uses: actions/setup-dotnet@v3
         with:
           dotnet-version: '8.0.x'
+
       - name: Restore dependencies
         run: dotnet restore
+
       - name: Build
         run: dotnet build --configuration Release
-      #- name: Run Deployment Script
-      #  run: dotnet run --project tools/TemplateDeployer
+
+      - name: Publish MCPCopilotUI
+        run: dotnet publish MCPCopilotUI/MCPCopilotUI.csproj --configuration Release --output ./publish
+
+      - name: Login to Azure
+        uses: azure/login@v1
+        with:
+          creds: ${{ secrets.AZURE_CREDENTIALS }}
+
+      - name: Deploy to Azure Web App
+        uses: azure/webapps-deploy@v2
+        with:
+          app-name: ${{ secrets.AZURE_WEBAPP_NAME }}
+          package: ./publish
