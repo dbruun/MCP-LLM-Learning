@@ -40,11 +40,11 @@ namespace MCPCopilotUI.Services
                     endpoint: _configuration["OpenAI:Endpoint"]!,
                     apiKey: _configuration["OpenAI:ApiKey"]!);
 
-#pragma warning disable SKEXP0010
-                kernelBuilder.Services.AddAzureOpenAITextToImage(
-                    deploymentName: _configuration["OpenAI:DeploymentNameImage"]!,
-                    endpoint: _configuration["OpenAI:Endpoint"]!,
-                    apiKey: _configuration["OpenAI:ApiKey"]!);
+// #pragma warning disable SKEXP0010
+//                 kernelBuilder.Services.AddAzureOpenAITextToImage(
+//                     deploymentName: _configuration["OpenAI:DeploymentNameImage"]!,
+//                     endpoint: _configuration["OpenAI:Endpoint"]!,
+//                     apiKey: _configuration["OpenAI:ApiKey"]!);
 
                 _kernel = kernelBuilder.Build();
 

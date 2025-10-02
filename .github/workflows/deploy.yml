@@ -1,6 +1,12 @@
 name: Check Build and Deploy to Azure Web App
 on:
   workflow_dispatch:
+    inputs:
+      project_number:
+        description: 'PCM Project Number (RITM ticket)'
+        required: false
+        default: 'RITM1185178'
+        type: string
   push:
     branches:
       - main
@@ -25,12 +31,62 @@ jobs:
         run: dotnet publish MCPCopilotUI/MCPCopilotUI.csproj --configuration Release --output ./publish
 
       - name: Login to Azure
-        uses: azure/login@v1
+        uses: azure/login@v2
         with:
           creds: ${{ secrets.AZURE_CREDENTIALS }}
 
-      - name: Deploy to Azure Web App
-        uses: azure/webapps-deploy@v2
-        with:
-          app-name: ${{ secrets.AZURE_WEBAPP_NAME }}
-          package: ./publish
+      - name: Create/Update Storage Account with Tags
+        run: |
+          # Set variables (customize these via secrets or workflow inputs)
+          RG="${{ secrets.AZURE_RESOURCE_GROUP }}"
+          LOCATION="${{ secrets.AZURE_LOCATION || 'eastus' }}"
+          STORAGE_NAME="${{ secrets.AZURE_STORAGE_NAME }}"
+          
+          # Get committer email from the git commit
+          COMMITTER_EMAIL="${{ github.event.head_commit.author.email }}"
+          # Fallback to github actor if email not available
+          if [ -z "$COMMITTER_EMAIL" ]; then
+            COMMITTER_EMAIL="${{ github.actor }}@users.noreply.github.com"
+          fi
+          
+          # Get project number from workflow input (manual run) or use default (push)
+          PROJECT_NUMBER="${{ github.event.inputs.project_number || 'RITM1185178' }}"
+          
+          # Validate project number starts with RITM
+          if [[ ! "$PROJECT_NUMBER" =~ ^RITM ]]; then
+            echo "❌ Error: Project number must start with 'RITM' (got: $PROJECT_NUMBER)"
+            exit 1
+          fi
+          
+          echo "✅ Project number validated: $PROJECT_NUMBER"
+          
+          # Create resource group if it doesn't exist
+          az group create --name $RG --location $LOCATION
+          
+          # Create or update storage account with tags
+          az storage account create \
+            --name $STORAGE_NAME \
+            --resource-group $RG \
+            --location $LOCATION \
+            --sku Standard_LRS \
+            --kind StorageV2 \
+            --tags \
+              pcm-application_name_sysid=placeholder \
+              pcm-built_by="$COMMITTER_EMAIL" \
+              pcm-business_service_sysid=SAVNS \
+              pcm-project_number="$PROJECT_NUMBER" \
+              pcm-sensitive_data_cjis=yes \
+              pcm-sensitive_data_ferpa=no \
+              pcm-sensitive_data_fti=no \
+              pcm-sensitive_data_pci=no \
+              pcm-sensitive_data_phi=no \
+              pcm-sensitive_data_pii=yes \
+              pcm-tag_1="SAVNS HB2582" \
+              pcm-tag_2=placeholder \
+              pcm-tag_3=placeholder
+
+      # - name: Deploy to Azure Web App
+      #   uses: azure/webapps-deploy@v2
+      #   with:
+      #     app-name: ${{ secrets.AZURE_WEBAPP_NAME }}
+      #     package: ./publish
