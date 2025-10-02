@@ -1,4 +1,80 @@
-MCPClient/appsettings.json
+# -------------------------
+# Local configuration / secrets
+# -------------------------
+# Ignore all appsettings.json files (local secrets/config)
+**/appsettings.json
+**/appsettings.*.json
+
+# Azure Functions local settings
+local.settings.json
+
+# User secrets and env files
+secrets.json
+.env
+.env.*
+
+# -------------------------
+# Build artifacts
+# -------------------------
 bin/
 obj/
-MCPCopilotUI/appsettings.json
+publish/
+**/publish/
+*.nupkg
+
+# MSBuild binary logs
+*.binlog
+
+# -------------------------
+# Visual Studio / IDE
+# -------------------------
+.vs/
+.vscode/
+*.suo
+*.user
+*.userosscache
+*.sln.docstates
+.idea/
+
+# Rider
+*.sln.iml
+
+# -------------------------
+# OS generated files
+# -------------------------
+.DS_Store
+Thumbs.db
+
+# -------------------------
+# Logs, test results, coverage
+# -------------------------
+*.log
+TestResults/
+*.trx
+coverage/
+
+# -------------------------
+# Certificates, keys
+# -------------------------
+*.pfx
+*.p12
+*.key
+*.pem
+
+# -------------------------
+# NPM / front-end
+# -------------------------
+node_modules/
+dist/
+wwwroot/dist/
+
+# -------------------------
+# Misc
+# -------------------------
+*.vsix
+*.nupkg
+*.zip
+
+# If you've already committed appsettings files, untrack them with:
+#   git rm --cached <path-to-file>
+#   git commit -m "Stop tracking appsettings files"

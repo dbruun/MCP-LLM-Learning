@@ -6,6 +6,10 @@ var builder = WebApplication.CreateBuilder(args);
 // Add services to the container
 builder.Services.AddRazorPages();
 builder.Services.AddSignalR();
+builder.Services.AddControllers();
+// Swagger/OpenAPI
+builder.Services.AddEndpointsApiExplorer();
+builder.Services.AddSwaggerGen();
 
 // Add logging
 builder.Services.AddLogging(c => c.AddConsole().AddDebug().SetMinimumLevel(LogLevel.Information));
@@ -21,6 +25,13 @@ if (!app.Environment.IsDevelopment())
     app.UseExceptionHandler("/Error");
     app.UseHsts();
 }
+// Enable middleware to serve generated Swagger as JSON and Swagger UI
+app.UseSwagger();
+app.UseSwaggerUI(c =>
+{
+    c.SwaggerEndpoint("/swagger/v1/swagger.json", "MCPCopilotUI API V1");
+    c.RoutePrefix = "swagger"; // serve at /swagger
+});
 
 app.UseHttpsRedirection();
 app.UseStaticFiles();
@@ -31,6 +42,7 @@ app.UseAuthorization();
 
 app.MapRazorPages();
 app.MapHub<ChatHub>("/chathub");
+app.MapControllers();
 
 // Initialize the chat service in the background to avoid blocking startup
 _ = Task.Run(async () =>

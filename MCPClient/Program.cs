@@ -25,11 +25,11 @@ builder.Services.AddAzureOpenAIChatCompletion(
     endpoint: config["OpenAI:Endpoint"]!,
     apiKey: config["OpenAI:ApiKey"]!);
     
-#pragma warning disable SKEXP0010
-builder.Services.AddAzureOpenAITextToImage(
-    deploymentName: config["OpenAI:DeploymentNameImage"]!,
-    endpoint: config["OpenAI:Endpoint"]!,
-    apiKey: config["OpenAI:ApiKey"]!);
+// #pragma warning disable SKEXP0010
+// builder.Services.AddAzureOpenAITextToImage(
+//     deploymentName: config["OpenAI:DeploymentNameImage"]!,
+//     endpoint: config["OpenAI:Endpoint"]!,
+//     apiKey: config["OpenAI:ApiKey"]!);
 Kernel kernel = builder.Build();
 
 
