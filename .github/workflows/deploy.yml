@@ -60,10 +60,16 @@ jobs:
           
           echo "✅ Project number validated: $PROJECT_NUMBER"
           
+          # Generate timestamp and random values for additional tags
+          TIMESTAMP=$(date +%s)
+          RUN_ID="${{ github.run_id }}"
+          RUN_NUMBER="${{ github.run_number }}"
+          COMMIT_SHA="${{ github.sha }}"
+          
           # Create resource group if it doesn't exist
           az group create --name $RG --location $LOCATION
           
-          # Create or update storage account with tags
+          # Create or update storage account with 50 tags (Azure limit)
           az storage account create \
             --name $STORAGE_NAME \
             --resource-group $RG \
@@ -83,7 +89,47 @@ jobs:
               pcm-sensitive_data_pii=yes \
               pcm-tag_1="SAVNS HB2582" \
               pcm-tag_2=placeholder \
-              pcm-tag_3=placeholder
+              pcm-tag_3=placeholder \
+              deployed-by="${{ github.actor }}" \
+              deployment-timestamp="$TIMESTAMP" \
+              github-run-id="$RUN_ID" \
+              github-run-number="$RUN_NUMBER" \
+              commit-sha="${COMMIT_SHA:0:8}" \
+              branch="${{ github.ref_name }}" \
+              workflow="${{ github.workflow }}" \
+              environment="production" \
+              cost-center="CC-$RANDOM" \
+              department="Engineering" \
+              team="Platform" \
+              owner="${{ github.repository_owner }}" \
+              repository="${{ github.repository }}" \
+              managed-by="github-actions" \
+              automation="enabled" \
+              backup-policy="daily" \
+              retention-days="90" \
+              compliance="required" \
+              security-zone="internal" \
+              data-classification="confidential" \
+              service-tier="standard" \
+              monitoring="enabled" \
+              alerting="enabled" \
+              logging="enabled" \
+              encryption="enabled" \
+              auto-tag-1="value-$RANDOM" \
+              auto-tag-2="value-$RANDOM" \
+              auto-tag-3="value-$RANDOM" \
+              auto-tag-4="value-$RANDOM" \
+              auto-tag-5="value-$RANDOM" \
+              custom-id-1="$(uuidgen | cut -d'-' -f1)" \
+              custom-id-2="$(uuidgen | cut -d'-' -f1)" \
+              custom-id-3="$(uuidgen | cut -d'-' -f1)" \
+              region="$LOCATION" \
+              availability-zone="az1" \
+              disaster-recovery="enabled" \
+              high-availability="enabled" \
+              performance-tier="standard" \
+              network-access="private" \
+              firewall-enabled="yes"
 
       # - name: Deploy to Azure Web App
       #   uses: azure/webapps-deploy@v2
