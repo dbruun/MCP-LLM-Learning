@@ -112,9 +112,7 @@ jobs:
               data-classification="confidential" \
               service-tier="standard" \
               monitoring="enabled" \
-              alerting="enabled" \
               logging="enabled" \
-              encryption="enabled" \
               auto-tag-1="value-$RANDOM" \
               auto-tag-2="value-$RANDOM" \
               auto-tag-3="value-$RANDOM" \
@@ -124,7 +122,6 @@ jobs:
               custom-id-2="$(uuidgen | cut -d'-' -f1)" \
               custom-id-3="$(uuidgen | cut -d'-' -f1)" \
               region="$LOCATION" \
-              availability-zone="az1" \
               disaster-recovery="enabled" \
               high-availability="enabled" \
               performance-tier="standard" \
