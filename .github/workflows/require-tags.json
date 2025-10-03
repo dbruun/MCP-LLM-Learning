@@ -1,0 +1,61 @@
+{
+  "if": {
+    "anyOf": [
+      {
+        "field": "tags['pcm-application_name_sysid']",
+        "exists": "false"
+      },
+      {
+        "field": "tags['pcm-built_by']",
+        "exists": "false"
+      },
+      {
+        "field": "tags['pcm-business_service_sysid']",
+        "exists": "false"
+      },
+      {
+        "field": "tags['pcm-project_number']",
+        "exists": "false"
+      },
+      {
+        "field": "tags['pcm-sensitive_data_cjis']",
+        "exists": "false"
+      },
+      {
+        "field": "tags['pcm-sensitive_data_ferpa']",
+        "exists": "false"
+      },
+      {
+        "field": "tags['pcm-sensitive_data_fti']",
+        "exists": "false"
+      },
+      {
+        "field": "tags['pcm-sensitive_data_pci']",
+        "exists": "false"
+      },
+      {
+        "field": "tags['pcm-sensitive_data_phi']",
+        "exists": "false"
+      },
+      {
+        "field": "tags['pcm-sensitive_data_pii']",
+        "exists": "false"
+      },
+      {
+        "field": "tags['pcm-tag_1']",
+        "exists": "false"
+      },
+      {
+        "field": "tags['pcm-tag_2']",
+        "exists": "false"
+      },
+      {
+        "field": "tags['pcm-tag_3']",
+        "exists": "false"
+      }
+    ]
+  },
+  "then": {
+    "effect": "deny"
+  }
+}
