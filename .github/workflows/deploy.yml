@@ -94,39 +94,7 @@ jobs:
               deployment-timestamp="$TIMESTAMP" \
               github-run-id="$RUN_ID" \
               github-run-number="$RUN_NUMBER" \
-              commit-sha="${COMMIT_SHA:0:8}" \
-              branch="${{ github.ref_name }}" \
-              workflow="${{ github.workflow }}" \
-              environment="production" \
-              cost-center="CC-$RANDOM" \
-              department="Engineering" \
-              team="Platform" \
-              owner="${{ github.repository_owner }}" \
-              repository="${{ github.repository }}" \
-              managed-by="github-actions" \
-              automation="enabled" \
-              backup-policy="daily" \
-              retention-days="90" \
-              compliance="required" \
-              security-zone="internal" \
-              data-classification="confidential" \
-              service-tier="standard" \
-              monitoring="enabled" \
-              logging="enabled" \
-              auto-tag-1="value-$RANDOM" \
-              auto-tag-2="value-$RANDOM" \
-              auto-tag-3="value-$RANDOM" \
-              auto-tag-4="value-$RANDOM" \
-              auto-tag-5="value-$RANDOM" \
-              custom-id-1="$(uuidgen | cut -d'-' -f1)" \
-              custom-id-2="$(uuidgen | cut -d'-' -f1)" \
-              custom-id-3="$(uuidgen | cut -d'-' -f1)" \
-              region="$LOCATION" \
-              disaster-recovery="enabled" \
-              high-availability="enabled" \
-              performance-tier="standard" \
-              network-access="private" \
-              firewall-enabled="yes"
+              
   deploy-prod:
     needs: build-and-deploy
     uses: ./.github/workflows/deploymentTemplate.yml
