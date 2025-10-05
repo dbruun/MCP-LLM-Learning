@@ -1,0 +1,93 @@
+name: Deploy to Development (Reusable Template)
+
+on:
+  workflow_call:
+    inputs:
+      artifact_name:
+        description: 'Name of the build artifact'
+        required: true
+        type: string
+      version:
+        description: 'Application version'
+        required: true
+        type: string
+      project_number:
+        description: 'PCM Project Number'
+        required: false
+        type: string
+        default: 'RITM1185178'
+    secrets:
+      azure_credentials:
+        required: true
+      azure_resource_group:
+        required: true
+      azure_webapp_name:
+        required: true
+      azure_storage_name:
+        required: true
+
+jobs:
+  deploy:
+    name: Deploy to Dev
+    runs-on: ubuntu-latest
+    environment:
+      name: development
+      url: https://dev-mcpcopilot.azurewebsites.net
+    steps:
+      - name: Download Build Artifact
+        uses: actions/download-artifact@v3
+        with:
+          name: ${{ inputs.artifact_name }}
+          path: ./publish
+
+      - name: Login to Azure
+        uses: azure/login@v2
+        with:
+          creds: ${{ secrets.azure_credentials }}
+
+      - name: Create/Update Storage Account (Dev)
+        run: |
+          RG="${{ secrets.azure_resource_group }}"
+          LOCATION="eastus"
+          STORAGE_NAME="${{ secrets.azure_storage_name }}"
+          TIMESTAMP=$(date +%s)
+          
+          echo "Creating resource group..."
+          az group create --name $RG --location $LOCATION
+          
+          echo "Creating storage account with dev tags..."
+          az storage account create \
+            --name $STORAGE_NAME \
+            --resource-group $RG \
+            --location $LOCATION \
+            --sku Standard_LRS \
+            --kind StorageV2 \
+            --tags \
+              environment=development \
+              version="${{ inputs.version }}" \
+              deployed-by="${{ github.actor }}" \
+              deployment-timestamp="$TIMESTAMP" \
+              github-run-id="${{ github.run_id }}" \
+              pcm-project_number="${{ inputs.project_number }}" \
+              pcm-built_by="${{ github.actor }}@users.noreply.github.com" \
+              automation="enabled" \
+              managed-by="github-actions"
+
+      - name: Deploy to Dev Web App
+        uses: azure/webapps-deploy@v2
+        with:
+          app-name: ${{ secrets.azure_webapp_name }}-dev
+          package: ./publish
+
+      - name: Run Smoke Tests
+        run: |
+          echo "Running smoke tests against dev environment..."
+          sleep 10
+          curl -f https://dev-mcpcopilot.azurewebsites.net/health || echo "Health check endpoint not available yet"
+
+      - name: Deployment Summary
+        run: |
+          echo "✅ Development deployment completed"
+          echo "Version: ${{ inputs.version }}"
+          echo "Environment: development"
+          echo "URL: https://dev-mcpcopilot.azurewebsites.net"

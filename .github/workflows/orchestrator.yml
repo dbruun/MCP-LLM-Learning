@@ -1,0 +1,175 @@
+name: Deployment Orchestrator (Reusable Templates)
+
+on:
+  workflow_call:
+    inputs:
+      environment:
+        description: 'Target environment to deploy'
+        required: true
+        type: string
+      project_number:
+        description: 'PCM Project Number (RITM ticket)'
+        required: false
+        type: string
+        default: 'RITM1185178'
+      skip_tests:
+        description: 'Skip test execution'
+        required: false
+        type: boolean
+        default: false
+      version:
+        description: 'Application version'
+        required: false
+        type: string
+    secrets:
+      azure_credentials:
+        required: true
+      azure_resource_group:
+        required: true
+      azure_webapp_name:
+        required: true
+      azure_storage_name:
+        required: true
+    outputs:
+      deployment_url:
+        description: 'URL of deployed application'
+        value: ${{ jobs.route-deployment.outputs.url }}
+      deployment_status:
+        description: 'Status of deployment'
+        value: ${{ jobs.route-deployment.outputs.status }}
+
+env:
+  DOTNET_VERSION: '8.0.x'
+
+jobs:
+  # Job 1: Build & Test (shared across all environments)
+  build-and-test:
+    name: Build & Test Application
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+      artifact_name: ${{ steps.artifact.outputs.name }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v3
+        with:
+          dotnet-version: ${{ env.DOTNET_VERSION }}
+
+      - name: Generate Version
+        id: version
+        run: |
+          if [ -n "${{ inputs.version }}" ]; then
+            VERSION="${{ inputs.version }}"
+          else
+            VERSION="1.0.${{ github.run_number }}"
+          fi
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+          echo "Generated version: $VERSION"
+
+      - name: Cache NuGet packages
+        uses: actions/cache@v3
+        with:
+          path: ~/.nuget/packages
+          key: ${{ runner.os }}-nuget-${{ hashFiles('**/*.csproj') }}
+
+      - name: Restore dependencies
+        run: dotnet restore
+
+      - name: Build
+        run: dotnet build --configuration Release --no-restore /p:Version=${{ steps.version.outputs.version }}
+
+      - name: Test
+        if: ${{ !inputs.skip_tests }}
+        run: dotnet test --configuration Release --no-build --collect:"XPlat Code Coverage"
+
+      - name: Publish MCPCopilotUI
+        run: dotnet publish MCPCopilotUI/MCPCopilotUI.csproj --configuration Release --output ./publish --no-build
+
+      - name: Set Artifact Name
+        id: artifact
+        run: |
+          ARTIFACT_NAME="mcpcopilotui-${{ inputs.environment }}-v${{ steps.version.outputs.version }}"
+          echo "name=$ARTIFACT_NAME" >> $GITHUB_OUTPUT
+
+      - name: Upload Build Artifact
+        uses: actions/upload-artifact@v3
+        with:
+          name: ${{ steps.artifact.outputs.name }}
+          path: ./publish
+          retention-days: 30
+
+  # Job 2: Route to appropriate environment template
+  route-deployment:
+    name: Deploy to ${{ inputs.environment }}
+    needs: build-and-test
+    runs-on: ubuntu-latest
+    outputs:
+      url: ${{ steps.set-output.outputs.url }}
+      status: ${{ steps.set-output.outputs.status }}
+    steps:
+      - name: Set outputs based on environment
+        id: set-output
+        run: |
+          case "${{ inputs.environment }}" in
+            dev|development)
+              echo "url=https://dev-mcpcopilot.azurewebsites.net" >> $GITHUB_OUTPUT
+              ;;
+            staging)
+              echo "url=https://staging-mcpcopilot.azurewebsites.net" >> $GITHUB_OUTPUT
+              ;;
+            prod|production)
+              echo "url=https://mcpcopilot.azurewebsites.net" >> $GITHUB_OUTPUT
+              ;;
+          esac
+          echo "status=pending" >> $GITHUB_OUTPUT
+
+  # Job 3: Deploy to Development
+  deploy-dev:
+    name: Deploy to Development Environment
+    needs: build-and-test
+    if: inputs.environment == 'dev' || inputs.environment == 'development'
+    uses: ./.github/workflows/template-deploy-dev.yml
+    with:
+      artifact_name: ${{ needs.build-and-test.outputs.artifact_name }}
+      version: ${{ needs.build-and-test.outputs.version }}
+      project_number: ${{ inputs.project_number }}
+    secrets:
+      azure_credentials: ${{ secrets.azure_credentials }}
+      azure_resource_group: ${{ secrets.azure_resource_group }}
+      azure_webapp_name: ${{ secrets.azure_webapp_name }}
+      azure_storage_name: ${{ secrets.azure_storage_name }}
+
+  # Job 4: Deploy to Staging
+  deploy-staging:
+    name: Deploy to Staging Environment
+    needs: build-and-test
+    if: inputs.environment == 'staging'
+    uses: ./.github/workflows/template-deploy-staging.yml
+    with:
+      artifact_name: ${{ needs.build-and-test.outputs.artifact_name }}
+      version: ${{ needs.build-and-test.outputs.version }}
+      project_number: ${{ inputs.project_number }}
+    secrets:
+      azure_credentials: ${{ secrets.azure_credentials }}
+      azure_resource_group: ${{ secrets.azure_resource_group }}
+      azure_webapp_name: ${{ secrets.azure_webapp_name }}
+      azure_storage_name: ${{ secrets.azure_storage_name }}
+
+  # Job 5: Deploy to Production
+  deploy-production:
+    name: Deploy to Production Environment
+    needs: build-and-test
+    if: inputs.environment == 'prod' || inputs.environment == 'production'
+    uses: ./.github/workflows/template-deploy-prod.yml
+    with:
+      artifact_name: ${{ needs.build-and-test.outputs.artifact_name }}
+      version: ${{ needs.build-and-test.outputs.version }}
+      project_number: ${{ inputs.project_number }}
+    secrets:
+      azure_credentials: ${{ secrets.azure_credentials }}
+      azure_resource_group: ${{ secrets.azure_resource_group }}
+      azure_webapp_name: ${{ secrets.azure_webapp_name }}
+      azure_storage_name: ${{ secrets.azure_storage_name }}

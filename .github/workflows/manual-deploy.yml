@@ -1,0 +1,74 @@
+name: Manual Deployment Trigger
+
+on:
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: 'Target environment'
+        required: true
+        type: choice
+        options:
+          - dev
+          - staging
+          - production
+      project_number:
+        description: 'PCM Project Number (RITM ticket)'
+        required: false
+        type: string
+        default: 'RITM1185178'
+      skip_tests:
+        description: 'Skip test execution'
+        required: false
+        type: boolean
+        default: false
+      version:
+        description: 'Optional: Specify version (defaults to auto-generated)'
+        required: false
+        type: string
+
+jobs:
+  trigger-orchestrator:
+    name: Trigger Deployment Orchestrator
+    runs-on: ubuntu-latest
+    steps:
+      - name: Display Deployment Info
+        run: |
+          echo "🚀 Triggering deployment to ${{ inputs.environment }}"
+          echo "Project: ${{ inputs.project_number }}"
+          echo "Skip tests: ${{ inputs.skip_tests }}"
+          echo "Version: ${{ inputs.version || 'auto-generated' }}"
+          echo "Triggered by: ${{ github.actor }}"
+
+  call-orchestrator:
+    name: Deploy via Orchestrator
+    needs: trigger-orchestrator
+    uses: ./.github/workflows/orchestrator.yml
+    with:
+      environment: ${{ inputs.environment }}
+      project_number: ${{ inputs.project_number }}
+      skip_tests: ${{ inputs.skip_tests }}
+      version: ${{ inputs.version }}
+    secrets:
+      azure_credentials: ${{ secrets.AZURE_CREDENTIALS }}
+      azure_resource_group: ${{ secrets.AZURE_RESOURCE_GROUP }}
+      azure_webapp_name: ${{ secrets.AZURE_WEBAPP_NAME }}
+      azure_storage_name: ${{ secrets.AZURE_STORAGE_NAME }}
+
+  deployment-summary:
+    name: Deployment Summary
+    needs: call-orchestrator
+    if: always()
+    runs-on: ubuntu-latest
+    steps:
+      - name: Display Results
+        run: |
+          echo "Deployment Status: ${{ needs.call-orchestrator.result }}"
+          echo "Deployment URL: ${{ needs.call-orchestrator.outputs.deployment_url }}"
+          echo "Environment: ${{ inputs.environment }}"
+          
+          if [ "${{ needs.call-orchestrator.result }}" == "success" ]; then
+            echo "✅ Deployment completed successfully"
+          else
+            echo "❌ Deployment failed"
+            exit 1
+          fi
