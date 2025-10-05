@@ -35,7 +35,7 @@ jobs:
       url: https://staging-mcpcopilot.azurewebsites.net
     steps:
       - name: Download Build Artifact
-        uses: actions/download-artifact@v3
+        uses: actions/download-artifact@v4
         with:
           name: ${{ inputs.artifact_name }}
           path: ./publish
@@ -63,6 +63,19 @@ jobs:
             --sku Standard_LRS \
             --kind StorageV2 \
             --tags \
+              pcm-application_name_sysid=MCPCopilotUI \
+              pcm-built_by="${{ github.actor }}@users.noreply.github.com" \
+              pcm-business_service_sysid=SAVNS \
+              pcm-project_number="$PROJECT_NUMBER" \
+              pcm-sensitive_data_cjis=yes \
+              pcm-sensitive_data_ferpa=no \
+              pcm-sensitive_data_fti=no \
+              pcm-sensitive_data_pci=no \
+              pcm-sensitive_data_phi=no \
+              pcm-sensitive_data_pii=yes \
+              pcm-tag_1="SAVNS HB2582" \
+              pcm-tag_2=production \
+              pcm-tag_3=mcpcopilot \
               environment=staging \
               version="${{ inputs.version }}" \
               deployed-by="${{ github.actor }}" \
@@ -71,60 +84,71 @@ jobs:
               github-run-number="${{ github.run_number }}" \
               commit-sha="${{ github.sha }}" \
               pcm-project_number="${{ inputs.project_number }}" \
-              pcm-built_by="${{ github.actor }}@users.noreply.github.com" \
-              pcm-business_service_sysid="SAVNS" \
+             
+        
               automation="enabled" \
               managed-by="github-actions" \
               backup-policy="daily" \
               compliance="required"
 
-      - name: Create Deployment Slot (Staging)
+      - name: Verify Storage Account
         run: |
-          echo "Creating staging deployment slot..."
-          az webapp deployment slot create \
-            --name ${{ secrets.azure_webapp_name }} \
-            --resource-group ${{ secrets.azure_resource_group }} \
-            --slot staging \
-            --configuration-source ${{ secrets.azure_webapp_name }} \
-            || echo "Staging slot already exists"
-
-      - name: Deploy to Staging Slot
-        run: |
-          echo "Deploying to staging slot..."
-          cd ./publish
-          zip -r ../deploy.zip .
-          cd ..
+          echo "Verifying storage account deployment..."
+          STORAGE_NAME="${{ secrets.azure_storage_name }}"
+          RG="${{ secrets.azure_resource_group }}"
           
-          az webapp deploy \
-            --name ${{ secrets.azure_webapp_name }} \
-            --resource-group ${{ secrets.azure_resource_group }} \
-            --slot staging \
-            --src-path deploy.zip \
-            --type zip
+          # Check if storage account exists and is available
+          echo "Checking storage account status..."
+          az storage account show \
+            --name $STORAGE_NAME \
+            --resource-group $RG \
+            --query '{name:name, location:location, sku:sku.name, status:statusOfPrimary, provisioningState:provisioningState}' \
+            -o table
+          
+          # Verify required tags exist
+          echo "\nVerifying staging tags..."
+          az storage account show \
+            --name $STORAGE_NAME \
+            --resource-group $RG \
+            --query 'tags' \
+            -o json
+          
+          # Test storage connectivity
+          echo "\nTesting storage connectivity..."
+          az storage account keys list \
+            --account-name $STORAGE_NAME \
+            --resource-group $RG \
+            --query '[0].value' \
+            -o tsv > /dev/null
+          
+          echo "\n✅ Storage account verification completed"
 
       - name: Run Integration Tests
         run: |
-          echo "Running integration tests..."
-          sleep 15
-          curl -f https://${{ secrets.azure_webapp_name }}-staging.azurewebsites.net/health || echo "Health check pending"
-
-      - name: Swap to Production Slot
-        run: |
-          echo "Swapping staging slot to production..."
-          az webapp deployment slot swap \
-            --name ${{ secrets.azure_webapp_name }} \
-            --resource-group ${{ secrets.azure_resource_group }} \
-            --slot staging
-
-      - name: Verify Production Deployment
-        run: |
-          echo "Verifying production after swap..."
-          sleep 10
-          curl -f https://staging-mcpcopilot.azurewebsites.net/health || echo "Health check pending"
+          echo "Running storage integration tests..."
+          STORAGE_NAME="${{ secrets.azure_storage_name }}"
+          RG="${{ secrets.azure_resource_group }}"
+          
+          # Get connection string
+          CONN_STRING=$(az storage account show-connection-string \
+            --name $STORAGE_NAME \
+            --resource-group $RG \
+            --query connectionString \
+            -o tsv)
+          
+          # Test blob service
+          echo "Testing blob service endpoint..."
+          az storage container list \
+            --connection-string "$CONN_STRING" \
+            --query '[].name' \
+            -o table || echo "No containers yet (expected for new storage)"
+          
+          echo "✅ Integration tests completed"
 
       - name: Deployment Summary
         run: |
-          echo "✅ Staging deployment completed with slot swap"
+          echo "✅ Staging deployment completed"
           echo "Version: ${{ inputs.version }}"
           echo "Environment: staging"
-          echo "URL: https://staging-mcpcopilot.azurewebsites.net"
+          echo "Storage Account: ${{ secrets.azure_storage_name }}"
+          echo "Resource Group: ${{ secrets.azure_resource_group }}"

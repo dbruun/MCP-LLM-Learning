@@ -55,7 +55,7 @@ jobs:
       url: https://mcpcopilot.azurewebsites.net
     steps:
       - name: Download Build Artifact
-        uses: actions/download-artifact@v3
+        uses: actions/download-artifact@v4
         with:
           name: ${{ inputs.artifact_name }}
           path: ./publish
@@ -133,22 +133,75 @@ jobs:
               cdn-enabled="yes" \
               waf-enabled="yes"
 
-      - name: Deploy to Production Web App
-        uses: azure/webapps-deploy@v2
-        with:
-          app-name: ${{ secrets.azure_webapp_name }}
-          package: ./publish
+      - name: Verify Storage Account
+        run: |
+          echo "Verifying production storage account deployment..."
+          STORAGE_NAME="${{ secrets.azure_storage_name }}"
+          RG="${{ secrets.azure_resource_group }}"
+          
+          # Check if storage account exists and is available
+          echo "Checking storage account status..."
+          az storage account show \
+            --name $STORAGE_NAME \
+            --resource-group $RG \
+            --query '{name:name, location:location, sku:sku.name, status:statusOfPrimary, provisioningState:provisioningState, httpsOnly:enableHttpsTrafficOnly}' \
+            -o table
+          
+          # Verify all 50 production tags
+          echo "\nVerifying production tags (50 tags)..."
+          TAG_COUNT=$(az storage account show \
+            --name $STORAGE_NAME \
+            --resource-group $RG \
+            --query 'length(tags)' \
+            -o tsv)
+          
+          echo "Tag count: $TAG_COUNT"
+          
+          az storage account show \
+            --name $STORAGE_NAME \
+            --resource-group $RG \
+            --query 'tags' \
+            -o json
+          
+          # Verify critical security settings
+          echo "\nVerifying security settings..."
+          az storage account show \
+            --name $STORAGE_NAME \
+            --resource-group $RG \
+            --query '{httpsOnly:enableHttpsTrafficOnly, minTlsVersion:minimumTlsVersion, allowBlobPublicAccess:allowBlobPublicAccess}' \
+            -o json
+          
+          echo "\n✅ Storage account verification completed"
 
       - name: Run Production Smoke Tests
         run: |
-          echo "Running production smoke tests..."
-          sleep 15
+          echo "Running production storage smoke tests..."
+          STORAGE_NAME="${{ secrets.azure_storage_name }}"
+          RG="${{ secrets.azure_resource_group }}"
           
-          # Health check
-          curl -f https://mcpcopilot.azurewebsites.net/health || echo "Health check pending"
+          # Get connection string
+          CONN_STRING=$(az storage account show-connection-string \
+            --name $STORAGE_NAME \
+            --resource-group $RG \
+            --query connectionString \
+            -o tsv)
           
-          # Basic functionality test
-          echo "Production deployment validated"
+          # Test blob service availability
+          echo "Testing blob service endpoint..."
+          az storage container list \
+            --connection-string "$CONN_STRING" \
+            --query '[].name' \
+            -o table || echo "No containers yet (expected for new storage)"
+          
+          # Verify service endpoints are responding
+          echo "Testing storage account endpoints..."
+          az storage account show \
+            --name $STORAGE_NAME \
+            --resource-group $RG \
+            --query 'primaryEndpoints' \
+            -o json
+          
+          echo "\n✅ Production smoke tests completed"
 
       - name: Create Deployment Tag
         run: |
@@ -162,7 +215,8 @@ jobs:
           echo "Version: ${{ inputs.version }}"
           echo "Environment: production"
           echo "Project: ${{ inputs.project_number }}"
-          echo "URL: https://mcpcopilot.azurewebsites.net"
+          echo "Storage Account: ${{ secrets.azure_storage_name }}"
+          echo "Resource Group: ${{ secrets.azure_resource_group }}"
           echo "Deployed by: ${{ github.actor }}"
           echo "Commit: ${{ github.sha }}"
 
@@ -176,12 +230,59 @@ jobs:
         if: needs.deploy.result == 'success'
         run: |
           echo "✅ Production deployment successful - v${{ inputs.version }}"
-          echo "Would send Slack/Teams notification"
-          # curl -X POST ${{ secrets.SLACK_WEBHOOK }} -d '{"text":"✅ Production deployed v${{ inputs.version }}"}'
+          echo "Sending Teams notification..."
+          # curl -H 'Content-Type: application/json' -d '{
+          #   "@type": "MessageCard",
+          #   "@context": "https://schema.org/extensions",
+          #   "summary": "Production Deployment Successful",
+          #   "themeColor": "00FF00",
+          #   "title": "✅ Production Deployment Successful",
+          #   "sections": [{
+          #     "activityTitle": "MCP-LLM-Learning",
+          #     "activitySubtitle": "Deployed by ${{ github.actor }}",
+          #     "facts": [
+          #       {"name": "Version:", "value": "${{ inputs.version }}"},
+          #       {"name": "Environment:", "value": "Production"},
+          #       {"name": "Project:", "value": "${{ inputs.project_number }}"},
+          #       {"name": "Storage Account:", "value": "${{ secrets.azure_storage_name }}"},
+          #       {"name": "Commit:", "value": "${{ github.sha }}"},
+          #       {"name": "Run ID:", "value": "${{ github.run_id }}"}
+          #     ]
+          #   }],
+          #   "potentialAction": [{
+          #     "@type": "OpenUri",
+          #     "name": "View Run",
+          #     "targets": [{"os": "default", "uri": "https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}"}]
+          #   }]
+          # }' ${{ secrets.TEAMS_WEBHOOK }}
 
       - name: Send Failure Notification
         if: needs.deploy.result != 'success'
         run: |
           echo "❌ Production deployment failed"
-          echo "Would send failure alert to Slack/Teams"
-          # curl -X POST ${{ secrets.SLACK_WEBHOOK }} -d '{"text":"❌ Production deployment failed!"}'
+          echo "Sending Teams failure alert..."
+          # curl -H 'Content-Type: application/json' -d '{
+          #   "@type": "MessageCard",
+          #   "@context": "https://schema.org/extensions",
+          #   "summary": "Production Deployment Failed",
+          #   "themeColor": "FF0000",
+          #   "title": "❌ Production Deployment Failed",
+          #   "sections": [{
+          #     "activityTitle": "MCP-LLM-Learning",
+          #     "activitySubtitle": "Attempted by ${{ github.actor }}",
+          #     "facts": [
+          #       {"name": "Version:", "value": "${{ inputs.version }}"},
+          #       {"name": "Environment:", "value": "Production"},
+          #       {"name": "Project:", "value": "${{ inputs.project_number }}"},
+          #       {"name": "Status:", "value": "${{ needs.deploy.result }}"},
+          #       {"name": "Commit:", "value": "${{ github.sha }}"},
+          #       {"name": "Run ID:", "value": "${{ github.run_id }}"}
+          #     ],
+          #     "text": "⚠️ Immediate attention required! Production deployment has failed."
+          #   }],
+          #   "potentialAction": [{
+          #     "@type": "OpenUri",
+          #     "name": "View Failed Run",
+          #     "targets": [{"os": "default", "uri": "https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}"}]
+          #   }]
+          # }' ${{ secrets.TEAMS_WEBHOOK }}

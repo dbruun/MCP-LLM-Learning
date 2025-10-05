@@ -35,7 +35,7 @@ jobs:
       url: https://dev-mcpcopilot.azurewebsites.net
     steps:
       - name: Download Build Artifact
-        uses: actions/download-artifact@v3
+        uses: actions/download-artifact@v4
         with:
           name: ${{ inputs.artifact_name }}
           path: ./publish
@@ -63,6 +63,18 @@ jobs:
             --sku Standard_LRS \
             --kind StorageV2 \
             --tags \
+              pcm-application_name_sysid=MCPCopilotUI \       
+              pcm-business_service_sysid=SAVNS \
+              pcm-project_number="$PROJECT_NUMBER" \
+              pcm-sensitive_data_cjis=yes \
+              pcm-sensitive_data_ferpa=no \
+              pcm-sensitive_data_fti=no \
+              pcm-sensitive_data_pci=no \
+              pcm-sensitive_data_phi=no \
+              pcm-sensitive_data_pii=yes \
+              pcm-tag_1="SAVNS HB2582" \
+              pcm-tag_2=production \
+              pcm-tag_3=mcpcopilot \
               environment=development \
               version="${{ inputs.version }}" \
               deployed-by="${{ github.actor }}" \
@@ -73,21 +85,33 @@ jobs:
               automation="enabled" \
               managed-by="github-actions"
 
-      - name: Deploy to Dev Web App
-        uses: azure/webapps-deploy@v2
-        with:
-          app-name: ${{ secrets.azure_webapp_name }}-dev
-          package: ./publish
-
-      - name: Run Smoke Tests
+      - name: Verify Storage Account
         run: |
-          echo "Running smoke tests against dev environment..."
-          sleep 10
-          curl -f https://dev-mcpcopilot.azurewebsites.net/health || echo "Health check endpoint not available yet"
+          echo "Verifying storage account deployment..."
+          STORAGE_NAME="${{ secrets.azure_storage_name }}"
+          RG="${{ secrets.azure_resource_group }}"
+          
+          # Check if storage account exists
+          az storage account show \
+            --name $STORAGE_NAME \
+            --resource-group $RG \
+            --query '{name:name, location:location, sku:sku.name, status:statusOfPrimary}' \
+            -o table
+          
+          # Verify tags
+          echo "\nVerifying tags..."
+          az storage account show \
+            --name $STORAGE_NAME \
+            --resource-group $RG \
+            --query 'tags' \
+            -o json
+          
+          echo "\n✅ Storage account verification completed"
 
       - name: Deployment Summary
         run: |
           echo "✅ Development deployment completed"
           echo "Version: ${{ inputs.version }}"
           echo "Environment: development"
-          echo "URL: https://dev-mcpcopilot.azurewebsites.net"
+          echo "Storage Account: ${{ secrets.azure_storage_name }}"
+          echo "Resource Group: ${{ secrets.azure_resource_group }}"
