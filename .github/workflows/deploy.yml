@@ -1,4 +1,4 @@
-name: Check Build and Deploy to Azure Web App
+name: Check Build and Deploy to Azure
 on:
   workflow_dispatch:
     inputs:
@@ -127,6 +127,16 @@ jobs:
               performance-tier="standard" \
               network-access="private" \
               firewall-enabled="yes"
+  deploy-prod:
+    needs: build-and-deploy
+    uses: ./.github/workflows/deploymentTemplate.yml
+    # uses: owner/repo/.github/workflows/deploymentTemplate.yml@main
+    # uses: myorg/shared-templates/.github/workflows/deploymentTemplate.yml@v1.0.0
+    with:
+      environment: production
+      app_name: my-app
+    secrets:
+      azure_credentials: ${{ secrets.AZURE_CREDENTIALS }}
 
       # - name: Deploy to Azure Web App
       #   uses: azure/webapps-deploy@v2

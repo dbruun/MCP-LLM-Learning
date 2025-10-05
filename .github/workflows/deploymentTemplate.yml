@@ -1,0 +1,21 @@
+name: Reusable Deploy Template
+on:
+  workflow_call:
+    inputs:
+      environment:
+        required: true
+        type: string
+      app_name:
+        required: true
+        type: string
+    secrets:
+      azure_credentials:
+        required: true
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - name: Deploy to ${{ inputs.environment }}
+        run: echo "Deploying ${{ inputs.app_name }} to ${{ inputs.environment }}"
