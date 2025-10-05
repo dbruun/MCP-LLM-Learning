@@ -77,6 +77,9 @@ jobs:
           az group create --name $RG --location $LOCATION
           
           echo "Creating storage account with full production tags (50 tags)..."
+          RUN_NUMBER="${{ github.run_number }}"
+          COMMIT_SHA="${{ github.sha }}"
+          
           az storage account create \
             --name $STORAGE_NAME \
             --resource-group $RG \
@@ -84,7 +87,7 @@ jobs:
             --sku Standard_LRS \
             --kind StorageV2 \
             --tags \
-              pcm-application_name_sysid=MCPCopilotUI \
+              pcm-application_name_sysid=placeholder \
               pcm-built_by="${{ github.actor }}@users.noreply.github.com" \
               pcm-business_service_sysid=SAVNS \
               pcm-project_number="$PROJECT_NUMBER" \
@@ -95,17 +98,17 @@ jobs:
               pcm-sensitive_data_phi=no \
               pcm-sensitive_data_pii=yes \
               pcm-tag_1="SAVNS HB2582" \
-              pcm-tag_2=production \
-              pcm-tag_3=mcpcopilot \
+              pcm-tag_2=placeholder \
+              pcm-tag_3=placeholder \
               deployed-by="${{ github.actor }}" \
               deployment-timestamp="$TIMESTAMP" \
               github-run-id="${{ github.run_id }}" \
-              github-run-number="${{ github.run_number }}" \
-              commit-sha="${{ github.sha }}" \
-              workflow="orchestrator" \
-              environment=production \
-              version="${{ inputs.version }}" \
-              cost-center="CC-12345" \
+              github-run-number="$RUN_NUMBER" \
+              commit-sha="${COMMIT_SHA:0:8}" \
+              branch="${{ github.ref_name }}" \
+              workflow="${{ github.workflow }}" \
+              environment="production" \
+              cost-center="CC-$RANDOM" \
               department="Engineering" \
               team="Platform" \
               owner="${{ github.repository_owner }}" \
@@ -119,19 +122,21 @@ jobs:
               data-classification="confidential" \
               service-tier="standard" \
               monitoring="enabled" \
-              alerting="enabled" \
               logging="enabled" \
-              encryption="enabled" \
+              auto-tag-1="value-$RANDOM" \
+              auto-tag-2="value-$RANDOM" \
+              auto-tag-3="value-$RANDOM" \
+              auto-tag-4="value-$RANDOM" \
+              auto-tag-5="value-$RANDOM" \
+              custom-id-1="$(uuidgen | cut -d'-' -f1)" \
+              custom-id-2="$(uuidgen | cut -d'-' -f1)" \
+              custom-id-3="$(uuidgen | cut -d'-' -f1)" \
               region="$LOCATION" \
-              availability-zone="az1" \
               disaster-recovery="enabled" \
               high-availability="enabled" \
-              performance-tier="premium" \
+              performance-tier="standard" \
               network-access="private" \
-              firewall-enabled="yes" \
-              auto-scaling="enabled" \
-              cdn-enabled="yes" \
-              waf-enabled="yes"
+              firewall-enabled="yes"
 
       - name: Verify Storage Account
         run: |

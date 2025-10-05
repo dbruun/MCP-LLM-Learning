@@ -55,7 +55,11 @@ jobs:
           echo "Creating resource group..."
           az group create --name $RG --location $LOCATION
           
-          echo "Creating storage account with staging tags..."
+          echo "Creating storage account with staging tags (50 tags)..."
+          PROJECT_NUMBER="${{ inputs.project_number }}"
+          RUN_NUMBER="${{ github.run_number }}"
+          COMMIT_SHA="${{ github.sha }}"
+          
           az storage account create \
             --name $STORAGE_NAME \
             --resource-group $RG \
@@ -63,7 +67,7 @@ jobs:
             --sku Standard_LRS \
             --kind StorageV2 \
             --tags \
-              pcm-application_name_sysid=MCPCopilotUI \
+              pcm-application_name_sysid=placeholder \
               pcm-built_by="${{ github.actor }}@users.noreply.github.com" \
               pcm-business_service_sysid=SAVNS \
               pcm-project_number="$PROJECT_NUMBER" \
@@ -74,22 +78,45 @@ jobs:
               pcm-sensitive_data_phi=no \
               pcm-sensitive_data_pii=yes \
               pcm-tag_1="SAVNS HB2582" \
-              pcm-tag_2=production \
-              pcm-tag_3=mcpcopilot \
-              environment=staging \
-              version="${{ inputs.version }}" \
+              pcm-tag_2=placeholder \
+              pcm-tag_3=placeholder \
               deployed-by="${{ github.actor }}" \
               deployment-timestamp="$TIMESTAMP" \
               github-run-id="${{ github.run_id }}" \
-              github-run-number="${{ github.run_number }}" \
-              commit-sha="${{ github.sha }}" \
-              pcm-project_number="${{ inputs.project_number }}" \
-             
-        
-              automation="enabled" \
+              github-run-number="$RUN_NUMBER" \
+              commit-sha="${COMMIT_SHA:0:8}" \
+              branch="${{ github.ref_name }}" \
+              workflow="${{ github.workflow }}" \
+              environment="staging" \
+              cost-center="CC-$RANDOM" \
+              department="Engineering" \
+              team="Platform" \
+              owner="${{ github.repository_owner }}" \
+              repository="${{ github.repository }}" \
               managed-by="github-actions" \
+              automation="enabled" \
               backup-policy="daily" \
-              compliance="required"
+              retention-days="90" \
+              compliance="required" \
+              security-zone="internal" \
+              data-classification="confidential" \
+              service-tier="standard" \
+              monitoring="enabled" \
+              logging="enabled" \
+              auto-tag-1="value-$RANDOM" \
+              auto-tag-2="value-$RANDOM" \
+              auto-tag-3="value-$RANDOM" \
+              auto-tag-4="value-$RANDOM" \
+              auto-tag-5="value-$RANDOM" \
+              custom-id-1="$(uuidgen | cut -d'-' -f1)" \
+              custom-id-2="$(uuidgen | cut -d'-' -f1)" \
+              custom-id-3="$(uuidgen | cut -d'-' -f1)" \
+              region="$LOCATION" \
+              disaster-recovery="enabled" \
+              high-availability="enabled" \
+              performance-tier="standard" \
+              network-access="private" \
+              firewall-enabled="yes"
 
       - name: Verify Storage Account
         run: |
