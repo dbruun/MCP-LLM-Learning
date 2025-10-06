@@ -83,7 +83,7 @@ jobs:
               pcm-project_number="$PROJECT_NUMBER" \
               pcm-sensitive_data_cjis=yes \
               pcm-sensitive_data_ferpa=no \
-              pcm-sensitive_data_fti=no \
+             
               pcm-sensitive_data_pci=no \
               pcm-sensitive_data_phi=no \
               pcm-sensitive_data_pii=yes \
