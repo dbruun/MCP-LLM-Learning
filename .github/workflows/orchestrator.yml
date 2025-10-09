@@ -22,7 +22,11 @@ on:
         required: false
         type: string
     secrets:
-      azure_credentials:
+      azure_client_id:
+        required: true
+      azure_tenant_id:
+        required: true
+      azure_subscription_id:
         required: true
       azure_resource_group:
         required: true
@@ -46,6 +50,9 @@ jobs:
   build-and-test:
     name: Build & Test Application
     runs-on: ubuntu-latest
+    permissions:
+      id-token: write  # Required for OIDC
+      contents: read   # Required for checkout
     outputs:
       version: ${{ steps.version.outputs.version }}
       artifact_name: ${{ steps.artifact.outputs.name }}
@@ -137,7 +144,9 @@ jobs:
       version: ${{ needs.build-and-test.outputs.version }}
       project_number: ${{ inputs.project_number }}
     secrets:
-      azure_credentials: ${{ secrets.azure_credentials }}
+      azure_client_id: ${{ secrets.azure_client_id }}
+      azure_tenant_id: ${{ secrets.azure_tenant_id }}
+      azure_subscription_id: ${{ secrets.azure_subscription_id }}
       azure_resource_group: ${{ secrets.azure_resource_group }}
       azure_webapp_name: ${{ secrets.azure_webapp_name }}
       azure_storage_name: ${{ secrets.azure_storage_name }}
@@ -153,7 +162,9 @@ jobs:
       version: ${{ needs.build-and-test.outputs.version }}
       project_number: ${{ inputs.project_number }}
     secrets:
-      azure_credentials: ${{ secrets.azure_credentials }}
+      azure_client_id: ${{ secrets.azure_client_id }}
+      azure_tenant_id: ${{ secrets.azure_tenant_id }}
+      azure_subscription_id: ${{ secrets.azure_subscription_id }}
       azure_resource_group: ${{ secrets.azure_resource_group }}
       azure_webapp_name: ${{ secrets.azure_webapp_name }}
       azure_storage_name: ${{ secrets.azure_storage_name }}
@@ -169,7 +180,9 @@ jobs:
       version: ${{ needs.build-and-test.outputs.version }}
       project_number: ${{ inputs.project_number }}
     secrets:
-      azure_credentials: ${{ secrets.azure_credentials }}
+      azure_client_id: ${{ secrets.azure_client_id }}
+      azure_tenant_id: ${{ secrets.azure_tenant_id }}
+      azure_subscription_id: ${{ secrets.azure_subscription_id }}
       azure_resource_group: ${{ secrets.azure_resource_group }}
       azure_webapp_name: ${{ secrets.azure_webapp_name }}
       azure_storage_name: ${{ secrets.azure_storage_name }}

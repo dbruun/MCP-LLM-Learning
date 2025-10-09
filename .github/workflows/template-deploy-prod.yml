@@ -17,7 +17,11 @@ on:
         type: string
         default: 'RITM1185178'
     secrets:
-      azure_credentials:
+      azure_client_id:
+        required: true
+      azure_tenant_id:
+        required: true
+      azure_subscription_id:
         required: true
       azure_resource_group:
         required: true
@@ -50,6 +54,9 @@ jobs:
     name: Deploy to Production
     needs: validate
     runs-on: ubuntu-latest
+    permissions:
+      id-token: write  # Required for OIDC
+      contents: read   # Required for artifact download
     environment:
       name: production
       url: https://mcpcopilot.azurewebsites.net
@@ -60,10 +67,12 @@ jobs:
           name: ${{ inputs.artifact_name }}
           path: ./publish
 
-      - name: Login to Azure
+      - name: Login to Azure via OIDC
         uses: azure/login@v2
         with:
-          creds: ${{ secrets.azure_credentials }}
+          client-id: ${{ secrets.azure_client_id }}
+          tenant-id: ${{ secrets.azure_tenant_id }}
+          subscription-id: ${{ secrets.azure_subscription_id }}
 
       - name: Create/Update Storage Account (Production)
         run: |

@@ -49,7 +49,9 @@ jobs:
       skip_tests: ${{ inputs.skip_tests }}
       version: ${{ inputs.version }}
     secrets:
-      azure_credentials: ${{ secrets.AZURE_CREDENTIALS }}
+      azure_client_id: ${{ secrets.AZURE_CLIENT_ID }}
+      azure_tenant_id: ${{ secrets.AZURE_TENANT_ID }}
+      azure_subscription_id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
       azure_resource_group: ${{ secrets.AZURE_RESOURCE_GROUP }}
       azure_webapp_name: ${{ secrets.AZURE_WEBAPP_NAME }}
       azure_storage_name: ${{ secrets.AZURE_STORAGE_NAME }}
