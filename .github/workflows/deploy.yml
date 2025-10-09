@@ -102,6 +102,9 @@ jobs:
               
   deploy-prod:
     needs: build-and-deploy
+    permissions:
+      id-token: write   # Required for OIDC in called workflows
+      contents: read    # Required for checkout in called workflows
     uses: ./.github/workflows/deploymentTemplate.yml
     # uses: owner/repo/.github/workflows/deploymentTemplate.yml@main
     # uses: myorg/shared-templates/.github/workflows/deploymentTemplate.yml@v1.0.0
