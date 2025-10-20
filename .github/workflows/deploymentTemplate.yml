@@ -9,13 +9,28 @@ on:
         required: true
         type: string
     secrets:
-      azure_credentials:
+      azure_client_id:
+        required: true
+      azure_tenant_id:
+        required: true
+      azure_subscription_id:
         required: true
 
 jobs:
   deploy:
     runs-on: ubuntu-latest
+    permissions:
+      id-token: write  # Required for OIDC
+      contents: read   # Required for checkout
     steps:
       - uses: actions/checkout@v3
+      
+      - name: Login to Azure via OIDC
+        uses: azure/login@v2
+        with:
+          client-id: ${{ secrets.azure_client_id }}
+          tenant-id: ${{ secrets.azure_tenant_id }}
+          subscription-id: ${{ secrets.azure_subscription_id }}
+      
       - name: Deploy to ${{ inputs.environment }}
         run: echo "Deploying ${{ inputs.app_name }} to ${{ inputs.environment }}"
